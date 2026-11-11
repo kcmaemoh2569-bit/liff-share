@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ส่งต่อการ์ดงานเสร็จสิ้น</title>
+<style>
+body{margin:0;font-family:sans-serif;background:#F1F5F9;display:flex;min-height:100vh;align-items:center;justify-content:center}
+.box{background:#fff;border-radius:16px;padding:28px 22px;width:84%;max-width:340px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.ic{font-size:44px}.msg{margin:10px 0 16px;font-size:16px;color:#0F172A;line-height:1.5}
+button{display:none;background:#06C755;color:#fff;border:0;border-radius:999px;padding:12px 26px;font-size:16px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="box"><div class="ic" id="ic">⏳</div><div class="msg" id="msg">กำลังเตรียมการ์ด…</div><button id="btn">เลือกผู้รับ</button></div>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+// ===== แก้ 2 ค่านี้ =====
+var LIFF_ID = '2012393591-5XSUI52i';                       // เช่น 1234567890-AbCdEfGh
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbxl2jgsbwDK7EkFq1_xTAGs130TuxGtDH4pnQEFI5YnImUwzr33LTjVQAF7X-b7lEC9Tg/exec';
+// ========================
+var $=function(i){return document.getElementById(i)};
+function ui(ic,m,b){$('ic').textContent=ic;$('msg').textContent=m;$('btn').style.display=b?'inline-block':'none'}
+function params(){
+  var q=new URLSearchParams(location.search),st=q.get('liff.state');
+  if(st){try{var s=new URLSearchParams(st.replace(/^\?/,''));return {c:s.get('c')||q.get('c'),s:s.get('s')||q.get('s')}}catch(e){}}
+  return {c:q.get('c'),s:q.get('s')};
+}
+function fetchCard(c,s){
+  return new Promise(function(res,rej){
+    var cb='cb'+Date.now(),sc=document.createElement('script'),t=setTimeout(function(){rej(new Error('หมดเวลา'));},20000);
+    window[cb]=function(d){clearTimeout(t);sc.remove();delete window[cb];d&&d.ok?res(d.message):rej(new Error((d&&d.error)||'ไม่พบข้อมูล'))};
+    sc.onerror=function(){clearTimeout(t);rej(new Error('เชื่อมต่อระบบไม่ได้'))};
+    sc.src=GAS_URL+(GAS_URL.indexOf('?')>-1?'&':'?')+'flex='+encodeURIComponent(c)+'&s='+encodeURIComponent(s)+'&callback='+cb;
+    document.head.appendChild(sc);
+  });
+}
+var msgObj=null;
+function pick(){
+  ui('📨','เลือกผู้รับในหน้าต่าง LINE…',false);
+  return liff.shareTargetPicker([msgObj],{isMultiple:true}).then(function(r){
+    if(r&&r.status==='success'){ui('✅','ส่งการ์ดเรียบร้อยแล้ว',false);setTimeout(function(){liff.closeWindow()},1500)}
+    else ui('↩️','ยังไม่ได้ส่ง กดเพื่อเลือกผู้รับอีกครั้ง',true);
+  }).catch(function(e){ui('⚠️','ส่งไม่สำเร็จ: '+(e&&e.message||e)+' (ถ้าเปิดบนคอม ให้อนุญาตป๊อปอัป หรือเปิดในแอป LINE บนมือถือ)',true)});
+}
+$('btn').onclick=pick;
+(function(){
+  var p=params();
+  if(!p.c||!p.s){ui('⚠️','ลิงก์ไม่ถูกต้อง');return}
+  liff.init({liffId:LIFF_ID}).then(function(){
+    if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
+    return fetchCard(p.c,p.s).then(function(m){msgObj=m;return pick()});
+  }).catch(function(e){ui('⚠️',(e&&e.message)||'เกิดข้อผิดพลาด')});
+})();
+</script>
+</body>
+</html>
