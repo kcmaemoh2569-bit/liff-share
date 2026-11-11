@@ -23,13 +23,13 @@ var $=function(i){return document.getElementById(i)};
 function ui(ic,m,b){$('ic').textContent=ic;$('msg').textContent=m;$('btn').style.display=b?'inline-block':'none'}
 function params(){
   var q=new URLSearchParams(location.search),st=q.get('liff.state');
-  if(st){try{var s=new URLSearchParams(st.replace(/^\?/,''));return {c:s.get('c')||q.get('c'),s:s.get('s')||q.get('s')}}catch(e){}}
-  return {c:q.get('c'),s:q.get('s')};
+  if(st){try{var s=new URLSearchParams(st.replace(/^\?/,''));return {c:s.get('c')||q.get('c'),s:s.get('s')||q.get('s'),m:s.get('m')||q.get('m')}}catch(e){}}
+  return {c:q.get('c'),s:q.get('s'),m:q.get('m')};
 }
 function fetchCard(c,s){
   return new Promise(function(res,rej){
     var cb='cb'+Date.now(),sc=document.createElement('script'),t=setTimeout(function(){rej(new Error('หมดเวลา'));},20000);
-    window[cb]=function(d){clearTimeout(t);sc.remove();delete window[cb];d&&d.ok?res(d.message):rej(new Error((d&&d.error)||'ไม่พบข้อมูล'))};
+    window[cb]=function(d){clearTimeout(t);sc.remove();delete window[cb];d&&d.ok?res(d):rej(new Error((d&&d.error)||'ไม่พบข้อมูล'))};
     sc.onerror=function(){clearTimeout(t);rej(new Error('เชื่อมต่อระบบไม่ได้'))};
     sc.src=GAS_URL+(GAS_URL.indexOf('?')>-1?'&':'?')+'flex='+encodeURIComponent(c)+'&s='+encodeURIComponent(s)+'&callback='+cb;
     document.head.appendChild(sc);
@@ -44,12 +44,27 @@ function pick(){
   }).catch(function(e){ui('⚠️','ส่งไม่สำเร็จ: '+(e&&e.message||e)+' (ถ้าเปิดบนคอม ให้อนุญาตป๊อปอัป หรือเปิดในแอป LINE บนมือถือ)',true)});
 }
 $('btn').onclick=pick;
+function copyMode(p){
+  ui('⏳','กำลังเตรียมข้อความ…',false);
+  fetchCard(p.c,p.s).then(function(d){
+    var box=document.querySelector('.box');
+    box.style.maxWidth='420px';
+    box.innerHTML='<div style="font-weight:bold;margin-bottom:10px">คัดลอกข้อความสรุปผลงาน</div><textarea id="ta" style="width:100%;box-sizing:border-box;height:240px;font:inherit;font-size:14px;line-height:1.5;padding:10px;border:1px solid #CBD5E1;border-radius:10px"></textarea><div><button id="cp" style="display:block;width:100%;margin-top:12px;background:#06C755;color:#fff;border:0;border-radius:999px;padding:13px;font-size:16px;font-weight:bold">📋 คัดลอกข้อความ</button></div><div id="st" style="margin-top:8px;font-size:14px;color:#16A34A;min-height:20px"></div>';
+    var ta=document.getElementById('ta'),st=document.getElementById('st');ta.value=d.text||'';
+    document.getElementById('cp').onclick=function(){
+      var ok=function(){st.textContent='✅ คัดลอกแล้ว วางในแชทหรือแอปอื่นได้เลย'};
+      var fb=function(){ta.focus();ta.select();try{document.execCommand('copy')?ok():st.textContent='กดค้างที่ข้อความเพื่อคัดลอก'}catch(e){st.textContent='กดค้างที่ข้อความเพื่อคัดลอก'}};
+      try{navigator.clipboard.writeText(ta.value).then(ok,fb)}catch(e){fb()}
+    };
+  }).catch(function(e){ui('⚠️',(e&&e.message)||'เกิดข้อผิดพลาด')});
+}
 (function(){
   var p=params();
   if(!p.c||!p.s){ui('⚠️','ลิงก์ไม่ถูกต้อง');return}
+  if(p.m==='copy'){copyMode(p);return}
   liff.init({liffId:LIFF_ID}).then(function(){
     if(!liff.isLoggedIn()){liff.login({redirectUri:location.href});return}
-    return fetchCard(p.c,p.s).then(function(m){msgObj=m;return pick()});
+    return fetchCard(p.c,p.s).then(function(d){msgObj=d.message;return pick()});
   }).catch(function(e){ui('⚠️',(e&&e.message)||'เกิดข้อผิดพลาด')});
 })();
 </script>
